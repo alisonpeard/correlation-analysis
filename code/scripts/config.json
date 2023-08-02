@@ -1,9 +1,9 @@
 {
     "paths": {
-        "datadir": "/Users/alison/Documents/RAPID/correlation_analysis/data_input",
-        "tempdir": "/Users/alison/Documents/RAPID/correlation_analysis/data_temp",
-        "resultsdir": "/Users/alison/Documents/RAPID/correlation_analysis/data_results",
-        "figdir": "/Users/alison/Documents/RAPID/correlation_analysis/figures"
+        "datadir": "/Users/alison/Documents/RAPID/correlation-analysis/data_input",
+        "tempdir": "/Users/alison/Documents/RAPID/correlation-analysis/data_temp",
+        "resultsdir": "/Users/alison/Documents/RAPID/correlation-analysis/data_results",
+        "figdir": "/Users/alison/Documents/RAPID/correlation-analysis/figures"
     },
     "config": {
         "scenario": "hist",
