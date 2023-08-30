@@ -28,9 +28,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--scenario', type=str, help='what scenario to process', default='Hist', choices=['Hist', 'BS', 'NF', 'FF', 'Test'])
 parser.add_argument('-v', '--var', type=str, help='what indicator variable to process', default='rainfall', choices=['rainfall', 'ep'])
 args = parser.parse_args()
-SCENARIO= args.scenario
+SCENARIO = args.scenario
 INDICATOR = args.var
-print(f'\nProcessing indicator data into years for {SCENARIO.lower()} and {INDICATOR}')
 
 
 def condition(filename, year):
@@ -41,11 +40,13 @@ def condition(filename, year):
     else:
         raise Exception("Scenario not in ['Hist', 'BS', 'NF', 'FF', 'Test']")
 
+
 def condition_historical(filename, year):
     if (filename.split('.')[-1] == 'nc') and (year in filename):
         return True
     else:
         return False
+
 
 def condition_scenario(filename, year):
     if (filename.split('.')[-1] == 'csv') and (year in filename):
@@ -78,19 +79,20 @@ def process_wah_file_historical(filename, wah_archive):
     df_grouped = df.groupby(['lon','lat','Year','Month', 'ensemble'])[INDICATOR].sum().to_frame().reset_index()
     return df_grouped, "EPSG:27700"  # might need to change this, this is for old data
 
+
 def process_wah_file_scenarios(filename, wah_archive):
     """Process scenario data stored in CSV format."""
     file = wah_archive.open(filename)
     df = pd.read_csv(file)
-    df =df.reset_index()
+    df = df.reset_index()
     df['lat'] = df['lat'].round(2)
     df['lon'] = df['lon'].round(2)
     df['time'] = pd.to_datetime(df['time'])
     df['Year'] = df['time'].dt.year
     df['Month'] = df['time'].dt.month
-    df['ep'] = 86400 * df['prbc'] - df['pepm']
-    df[INDICATOR] = -df[INDICATOR]  # need to be precip - evapotranspiration, not reverse
-    df_grouped = df.groupby(['lon','lat','Year','Month', 'ensemble'])['ep'].sum().to_frame().reset_index()
+    df['prbc'] *= 86400  # mm/s to mm/d
+    df['ep'] = df['prbc'] - df['pepm']
+    df_grouped = df.groupby(['lon', 'lat', 'Year', 'Month', 'ensemble'])['ep'].sum().to_frame().reset_index()
     return df_grouped, "EPSG:4326"
 
 
@@ -132,5 +134,6 @@ def main(config):
 
 
 if __name__ == "__main__":
+    print(f'\nProcessing indicator data into years for {SCENARIO.lower()} and {INDICATOR}')
     config = utils.load_config()
     main(config)
