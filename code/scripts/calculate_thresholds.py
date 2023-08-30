@@ -13,6 +13,9 @@ import utils
 from process_indicator_yearly import condition_scenario
 
 
+YEARS = {'BS': range(1975, 2004+1), 'NF': range(2020, 2049+1), 'FF': range(2070, 2099+1)}
+
+
 def quantile(q):
     def _quantile(x):
         return np.quantile(x, q)
@@ -53,13 +56,11 @@ def main(config, scenarios=["BS", "NF", "FF"]):
     for scenario in (pbar := tqdm(scenarios)):
         pbar.set_description(f"Reading {scenario}")
 
-        YEARS = utils.load_list(os.path.join(outdir, scenario.lower(), "years"))
         wahpath = os.path.join(datadir, 'w@h', f"{scenario.lower()}.zip")
 
         with zipfile.ZipFile(wahpath, 'r') as archive:
-            for year in (pbar := tqdm(YEARS)):
-                pbar.set_description(f"Reading {year}")
-                files_year = [file for file in archive.namelist() if condition_scenario(file, year)]
+            for year in YEARS[scenario]:
+                files_year = [file for file in archive.namelist() if condition_scenario(file, str(year))]
                 if len(files_year) == 1:
                     df = read_wah_file(files_year[0], archive)
                     dfs.append(df)
