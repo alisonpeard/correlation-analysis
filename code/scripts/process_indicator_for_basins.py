@@ -73,13 +73,13 @@ def main(config):
     df = df.rename(columns={stat: INDICATOR + '_' + stat for stat in ['mean', 'q50', 'q75', 'q90']})
     df = df.sort_values(['ensemble', 'lat', 'lon', 'Year', 'Month'])
 
-    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs=4326)  # TESTING 5
+    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs=4326)
 
     for ensemble in (pbar := tqdm(ENSEMBLES)):
         pbar.set_description(f"Processing ensemble {ensemble} into basins")
 
         # Subset geodataframe on ensemble member
-        gdf_ens = gdf.loc[df['ensemble'] == ensemble]
+        gdf_ens = gdf.loc[gdf['ensemble'] == ensemble]
         gdf_ens = gdf_ens.drop(columns='ensemble')
 
         for wrz_row in (sub_pbar := tqdm(wrz.itertuples(), total=len(wrz), leave=False)):
