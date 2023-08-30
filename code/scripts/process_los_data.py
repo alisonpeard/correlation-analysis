@@ -20,7 +20,6 @@ import os
 os.environ['USE_PYGEOS'] = '0'
 import utils
 import pandas as pd
-import geopandas as gpd
 
 # set scenario using command likne
 import argparse
@@ -30,12 +29,17 @@ args = parser.parse_args()
 SCENARIO= args.scenario
 print(f'\nProcessing WREW data for {SCENARIO.lower()}')
 
+
 def main(config):
     datadir = config['paths']['datadir']
     outdir = config['paths']['tempdir']
 
+    out_subdir = os.path.join(outdir, SCENARIO.lower())
+    if not os.path.exists(out_subdir):
+        os.makedirs(out_subdir)
+
     inpath = os.path.join(datadir, 'los', f'weighted_monthly_LoS_{SCENARIO}.csv')
-    outpath = os.path.join(outdir, SCENARIO.lower(), 'monthly_los_melted.csv')
+    outpath = os.path.join(out_subdir, 'monthly_los_melted.csv')
 
     wrz_code = pd.read_excel(os.path.join(datadir, 'WRZ', 'wrz_code.xlsx'))
     wrz_code['RZ ID'] = pd.to_numeric(wrz_code['RZ ID'])
@@ -66,8 +70,8 @@ def main(config):
     # grab how many years and ensembles we have WREW data for
     YEARS = [str(year) for year in monthly_los_melted['Year'].unique()]
     ENSEMBLES = [*monthly_los_melted['Ensemble'].unique()]
-    utils.save_list(YEARS, os.path.join(outdir, SCENARIO.lower(), "years"))
-    utils.save_list(ENSEMBLES, os.path.join(outdir, SCENARIO.lower(), 'ensembles'))
+    utils.save_list(YEARS, os.path.join(out_subdir, "years"))
+    utils.save_list(ENSEMBLES, os.path.join(out_subdir, 'ensembles'))
     
     print(f"Number of LoS days: {monthly_los_melted['LoS'].sum():,.0f}")
     monthly_los_melted = monthly_los_melted.rename(columns={'Ensemble': 'ensemble'})
