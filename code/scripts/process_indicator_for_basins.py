@@ -20,7 +20,6 @@ import utils
 import warnings
 import pandas as pd
 import geopandas as gpd
-import dask.dataframe as dd
 from tqdm import tqdm
 
 # set scenario using command line
@@ -29,10 +28,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-s', '--scenario', type=str, help='what scenario to process', default='BS', choices=['Hist', 'BS', 'NF', 'FF', 'Test'])
 parser.add_argument('-v', '--var', type=str, help='what indicator variable to process', default='ep', choices=['rainfall', 'ep'])
 args = parser.parse_args()
-SCENARIO= args.scenario
+SCENARIO = args.scenario
 INDICATOR = args.var
 
 print(f'\nProcessing indicator data into basins for {SCENARIO.lower()} and {INDICATOR}')
+
 
 def main(config):
     datadir = config['paths']["datadir"]
@@ -54,45 +54,53 @@ def main(config):
     wrz = wrz[['RZ_ID', 'geometry']].drop_duplicates()
     wrz['bounds'] = wrz.bounds.apply(lambda row: (row['minx'], row['miny'], row['maxx'], row['maxy']), axis=1)
 
-    for ensemble in (pbar:=tqdm(ENSEMBLES)):
+    # TESTING
+    # wrz = wrz.loc[wrz['RZ_ID'] == 117]
+
+    # Read WAH time series data (all years and ensemble members)
+    tmp = []
+    for year in YEARS:
+        path_yearly = os.path.join(outdir, SCENARIO.lower(), 'yearly', f'wah_{year}.parquet')
+        df = pd.read_parquet(path_yearly, columns=['lon', 'lat', 'Year', 'Month', 'ensemble', INDICATOR])
+        tmp.append(df)
+    df = pd.concat(tmp)
+
+    # Join thresholds to time series
+    df_thresholds = pd.read_csv(os.path.join(outdir, 'thresholds', 'wah_thresholds.csv'))
+    df_thresholds = df_thresholds.loc[df_thresholds['Variable'] == INDICATOR]
+    df_thresholds = df_thresholds.drop(columns='Variable')
+    df = df.merge(df_thresholds, on=['lat', 'lon', 'Month'])
+    df = df.rename(columns={stat: INDICATOR + '_' + stat for stat in ['mean', 'q50', 'q75', 'q90']})
+    df = df.sort_values(['ensemble', 'lat', 'lon', 'Year', 'Month'])
+
+    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs=4326)  # TESTING 5
+
+    for ensemble in (pbar := tqdm(ENSEMBLES)):
         pbar.set_description(f"Processing ensemble {ensemble} into basins")
-        for wrz_row in (sub_pbar:=tqdm(wrz.itertuples(), total=len(wrz), leave=False)):
+
+        # Subset geodataframe on ensemble member
+        gdf_ens = gdf.loc[df['ensemble'] == ensemble]
+        gdf_ens = gdf_ens.drop(columns='ensemble')
+
+        for wrz_row in (sub_pbar := tqdm(wrz.itertuples(), total=len(wrz), leave=False)):
             sub_pbar.set_description(f"WRZ {wrz_row.RZ_ID}")
             savedir = os.path.join(outdir, SCENARIO.lower(), "by_basin", f"wrz_{wrz_row.RZ_ID}")
             savepath = os.path.join(savedir, f"{ensemble}.parquet")
 
-            if not os.path.exists(savepath) | utils.first_file_is_newer(os.path.join(outdir, SCENARIO.lower(), 'yearly', f'wah_{YEARS[0]}.parquet'), savepath):
-                bounds = rz_basin_geoms[wrz_row.RZ_ID].bounds
-                wah_dfs = []
-                for year in YEARS:
-                    path_yearly = os.path.join(outdir, SCENARIO.lower(), 'yearly', f'wah_{year}.parquet')
-                    if os.path.exists(path_yearly):
-                        ddf = dd.read_parquet(path_yearly,
-                                            filters=[[('lon', '>=', bounds[0]),
-                                                ('lat', '>=', bounds[1]),
-                                                ('lon', '<=', bounds[2]),
-                                                ('lat', '<=', bounds[3]),
-                                                ('ensemble', '==', ensemble)]],
-                                            columns=['lon', 'lat', 'Year', 'Month', INDICATOR])
-                        df = ddf.compute()
-                        gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.lon, df.lat), crs=4326).clip(rz_basin_geoms[wrz_row.RZ_ID])
-                        if len(gdf) > 0:
-                            wah_dfs.append(gdf)
-                
-                if len(wah_dfs) > 0:
-                    wah_df = pd.concat(wah_dfs)
-                    # calculate all the metrics
-                    q50 = wah_df.groupby("Month")[INDICATOR].quantile(.5).to_frame()
-                    q75 = wah_df.groupby("Month")[INDICATOR].quantile(.75).to_frame()
-                    q90 = wah_df.groupby("Month")[INDICATOR].quantile(.9).to_frame()
-                    wah_df = pd.merge(wah_df, q50, on='Month', how='left', suffixes=('', '_q50'))
-                    wah_df = pd.merge(wah_df, q75, on='Month', how='left', suffixes=('', '_q75'))
-                    wah_df = pd.merge(wah_df, q90, on='Month', how='left', suffixes=('', '_q90'))
-                    if len(wah_df) > 0:
-                        if not os.path.exists(savedir):
-                            os.makedirs(savedir)
-                        sub_pbar.set_description(f"Saving WRZ {wrz_row.RZ_ID} results to {savepath}")
-                        wah_df[['Year', 'Month', INDICATOR, f'{INDICATOR}_q50',f'{INDICATOR}_q75', f'{INDICATOR}_q90', 'geometry']].to_parquet(savepath) # check subset ok
+            if not os.path.exists(savepath) | utils.first_file_is_newer(
+                    os.path.join(outdir, SCENARIO.lower(), 'yearly', f'wah_{YEARS[0]}.parquet'), savepath):
+
+                wah_df = gdf_ens.clip(rz_basin_geoms[wrz_row.RZ_ID])
+                wah_df = wah_df.sort_values(['lat', 'lon', 'Year', 'Month'])  # clip does not seem to keep order
+
+                if len(wah_df) > 0:
+                    if not os.path.exists(savedir):
+                        os.makedirs(savedir)
+                    sub_pbar.set_description(f"Saving WRZ {wrz_row.RZ_ID} results to {savepath}")
+                    wah_df[[
+                        'Year', 'Month', INDICATOR, f'{INDICATOR}_mean', f'{INDICATOR}_q50', f'{INDICATOR}_q75',
+                        f'{INDICATOR}_q90', 'geometry'
+                    ]].to_parquet(savepath)  #   check subset ok
                 else:
                     warnings.warn(f"No files found for wrz {wrz.RZ_ID}")
 
@@ -100,3 +108,4 @@ def main(config):
 if __name__ == "__main__":
     config = utils.load_config()
     main(config)
+
