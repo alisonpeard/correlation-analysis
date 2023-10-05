@@ -17,6 +17,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 from tqdm import tqdm
 
+
 def get_events(df):
     """Process melted LoS dataframe to extract events"""
     df = df.drop_duplicates()
@@ -26,14 +27,14 @@ def get_events(df):
     
     df['Day'] = [16] * len(df)  # check w@h input data and what day of month is being used, currently it is 16th
     df['date'] = pd.to_datetime(df[['Year', 'Month', 'Day']])
-    df['diff'] = df['date'].dt.to_period('M').astype(int).diff().replace(np.nan, 0).astype(int)
+    df['diff'] = df['date'].dt.to_period('M').astype(np.int64).diff().replace(np.nan, 0).astype(np.int64)
     df['event'] = (df['diff'] != 1).cumsum()
 
     agg_kwargs = {'start': ('date', min),
                   'end': ('date', max),
                   'severity': ('LoS', sum)}
     df = df[['RZ_ID', 'event', 'date', 'LoS']].groupby(['RZ_ID', 'event']).agg(**agg_kwargs).reset_index()
-    df['duration'] = df['end'] - df['start'] # + relativedelta(months=1) (ask Jim/Anna)
+    df['duration'] = df['end'] - df['start']  # + relativedelta(months=1) (ask Jim/Anna)
     return df.reset_index()
 
 
@@ -58,6 +59,7 @@ SCENARIO = args.scenario
 INDICATOR = args.var
 print(f'\nProcessing events for {SCENARIO.lower()} and {INDICATOR}')
 
+
 def main(config):
     datadir = config['paths']["datadir"]
     tempdir = config['paths']["tempdir"]
@@ -66,6 +68,7 @@ def main(config):
     ENSEMBLES = utils.load_list(os.path.join(tempdir, SCENARIO.lower(), "ensembles"))
 
     monthly_los_melted = pd.read_csv(os.path.join(tempdir, SCENARIO.lower(), "monthly_los_melted.csv"))
+    # for RZ_ID in (pbar := tqdm([117], total=1)):  # TESTING
     for RZ_ID in (pbar:=tqdm(monthly_los_melted['RZ_ID'].unique(), total=monthly_los_melted['RZ_ID'].nunique())):
         pbar.set_description(f"Creating event set for WRZ {RZ_ID}")
         if not os.path.exists(os.path.join(outdir, SCENARIO.lower(), "events")):
@@ -97,8 +100,14 @@ def main(config):
                     ensemble_events.append(wah_sub)
 
             if len(ensemble_events) > 0:
-                ensemble_events = pd.concat(ensemble_events)[['RZ_ID', 'ensemble', 'event', 'start', 'end', 'severity', 'duration', 'backcast', 'buffer', f'{INDICATOR}_total', f'{INDICATOR}_mean', 'q50_anomaly_total', 'q75_anomaly_total', 'q90_anomaly_total', 'q50_deficit_total']]
-                ensemble_events = ensemble_events.groupby(['RZ_ID', 'ensemble', 'event', 'start', 'end', 'severity', 'duration', 'backcast', 'buffer']).sum().reset_index()
+                ensemble_events = pd.concat(ensemble_events)[[
+                    'RZ_ID', 'ensemble', 'event', 'start', 'end', 'severity', 'duration', 'backcast', 'buffer',
+                    f'{INDICATOR}_total', f'{INDICATOR}_mean', 'mean_anomaly_total',  'q50_anomaly_total',
+                    'mean_deficit_total', 'q50_deficit_total', 'q75_deficit_total', 'q90_deficit_total',
+                ]]
+                ensemble_events = ensemble_events.groupby([
+                    'RZ_ID', 'ensemble', 'event', 'start', 'end', 'severity', 'duration', 'backcast', 'buffer'
+                ]).sum().reset_index()
                 all_events.append(ensemble_events)
         
         if len(all_events) > 0:

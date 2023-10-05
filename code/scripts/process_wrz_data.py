@@ -19,11 +19,15 @@ import geopandas as gpd
 
 print("\nProcessing WRZ files.")
 
+
 def main(config):
     datadir = config['paths']['datadir']
     outdir = config['paths']["tempdir"]
     uk_crs = config['config']['uk_crs']
     buffers = config['config']['buffers']
+
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
 
     # load and merge WRZ dataframes
     wrz = gpd.read_file(os.path.join(datadir, 'WRZ', 'WRZ.shp'), crs=uk_crs).to_crs('EPSG:4326')
