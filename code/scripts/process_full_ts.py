@@ -89,7 +89,7 @@ def main(config):
                     # only do overlay for one month to save time
                     wah_coords = gpd.read_parquet(basinpath, filters=[("Year", "=", int(YEARS[0])), ("Month", "=", 1)])
                     assert wah_coords.crs == buffers_wrz.crs, "Dataframes have different coordinate reference systems"
-                    wah_map = gpd.overlay(wah_coords, buffers_wrz, how='intersection')
+                    wah_map = gpd.overlay(wah_coords, buffers_wrz, how='intersection') # TODO
                     wah_map = wah_map[['geometry', 'RZ_ID', 'buffer']].set_index('geometry')
                     wah_gdf = gpd.read_parquet(os.path.join(tempdir, SCENARIO.lower(), "by_basin", f"wrz_{wrz_row.RZ_ID}", f"{ensemble}.parquet"))
 
