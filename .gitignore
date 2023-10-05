@@ -161,4 +161,4 @@ cython_debug/
 
 
 # OSC
-.DS_Store
+.DS_Store.DS_Store
