@@ -1,14 +1,14 @@
 {
     "paths": {
-        "datadir": "/Users/alison/Documents/RAPID/correlation-analysis/data_input",
-        "tempdir": "/Users/alison/Documents/RAPID/correlation-analysis/data_temp",
-        "resultsdir": "/Users/alison/Documents/RAPID/correlation-analysis/data_results",
-        "figdir": "/Users/alison/Documents/RAPID/correlation-analysis/figures"
+        "datadir": "C:/Users/DPRITCHARD01/OneDrive - Defra/Projects/Drought_Indicators/Test_1/data_input",
+        "tempdir": "C:/Users/DPRITCHARD01/OneDrive - Defra/Projects/Drought_Indicators/005/data_temp",
+        "resultsdir": "C:/Users/DPRITCHARD01/OneDrive - Defra/Projects/Drought_Indicators/005/data_results",
+        "figdir": "C:/Users/DPRITCHARD01/OneDrive - Defra/Projects/Drought_Indicators/005/figures"
     },
     "config": {
         "scenario": "hist",
         "uk_crs": "EPSG:27700",
         "backcasts": [3, 6, 12, 24, 36],
-        "buffers":[5000, 10000, 25000, 50000, 100000, 150000, 200000, 500000]
+        "buffers": [500000]
     }
 }
