@@ -162,3 +162,4 @@ cython_debug/
 
 # OSC
 .DS_Store
+.Rhistory
