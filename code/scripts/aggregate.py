@@ -9,6 +9,7 @@ Steps:
 
 """
 import os
+os.environ['USE_PYGEOS'] = '0'
 import zipfile
 
 import pandas as pd
@@ -179,8 +180,10 @@ def aggregate_spatially(tempdir, df, buffered_extents, scenarios=['BS', 'NF', 'F
         gdf = gpd.GeoDataFrame(df_sub, geometry=gpd.points_from_xy(df_sub['lon'], df_sub['lat']), crs="EPSG:4326")
 
         dfs = []
-        for _, row in buffered_extents.iterrows():
+        for _, row in (pbar2 := tqdm(buffered_extents.iterrows(), total=len(buffered_extents), leave=False)):
+            pbar2.set_description(f"WRZ {row['RZ_ID']}, buffer {row['buffer']}")
             wah_df = gpd.clip(gdf, row['geometry'])
+
             df_agg = wah_df.groupby(['Variable', 'ensemble', 'Year', 'Month'])['Value'].mean().reset_index()
             df_agg['RZ_ID'] = row['RZ_ID']
             df_agg['buffer'] = row['buffer']

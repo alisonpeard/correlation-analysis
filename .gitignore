@@ -162,3 +162,5 @@ cython_debug/
 
 # OSC
 .DS_Store
+.Rhistory
+davids_results/
